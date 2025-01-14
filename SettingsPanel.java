@@ -105,7 +105,14 @@ public class SettingsPanel extends JPanel {
      * @param action A Runnable action to execute when the button is clicked.
      */
     public void setSubmitButtonFunction(Runnable action) {
-        submitButton.addActionListener(e -> action.run());
+        submitButton.addActionListener(e -> {
+            try {
+                validateInputs();
+                action.run();
+            } catch (IllegalArgumentException ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Input Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
     }
 
     /**
@@ -131,12 +138,32 @@ public class SettingsPanel extends JPanel {
         }
 
         try {
-            getPhysicalPageSize();
+            int physicalPageSize = getPhysicalPageSize();
+            int virtualMemorySize = getVirtualMemorySize();
+
+            // Check if Physical Page Size and Virtual Memory Size are powers of 2
+            if (!isPowerOfTwo(physicalPageSize)) {
+                throw new IllegalArgumentException("Physical Page Size must be a power of 2.");
+            }
+
+            if (!isPowerOfTwo(virtualMemorySize)) {
+                throw new IllegalArgumentException("Virtual Memory Size must be a power of 2.");
+            }
+
             getTlbSize();
             getOffset();
-            getVirtualMemorySize();
         } catch (NumberFormatException ex) {
             throw new IllegalArgumentException("All inputs must be valid integers.");
         }
+    }
+
+    /**
+     * Utility method to check if a number is a power of 2.
+     *
+     * @param n The number to check.
+     * @return True if the number is a power of 2, false otherwise.
+     */
+    private boolean isPowerOfTwo(int n) {
+        return (n > 0) && ((n & (n - 1)) == 0);
     }
 }

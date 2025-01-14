@@ -1,8 +1,8 @@
 package org.example.view;
 
-import org.example.model.MyTLB;
-import org.example.model.MyPageTable;
-import org.example.model.MyPMTable;
+import org.example.model.TLBTable;
+import org.example.model.PageTable;
+import org.example.model.PMTable;
 
 import javax.swing.*;
 import java.awt.*;
@@ -39,8 +39,8 @@ public class MemoryPanel extends JPanel {
     /**
      * Update tables with new models for TLB, Page Table, and Physical Memory.
      */
-    public void updateTables(MyTLB tlbModel, MyPageTable pageTableModel, MyPMTable pmTableModel) {
-        tlbTable.setModel(tlbModel);
+    public void updateTables(TLBTable tlbTableModel, PageTable pageTableModel, PMTable pmTableModel) {
+        tlbTable.setModel(tlbTableModel);
         pageTable.setModel(pageTableModel);
         physicalMemoryTable.setModel(pmTableModel);
     }

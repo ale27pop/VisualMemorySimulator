@@ -8,7 +8,8 @@ import java.util.Random;
 public class LoadInstructionPanel extends JPanel {
     private JTextField binaryAddressField;     // Random Address (Binary)
     private JTextField hexAddressField;        // Random Address (Hex)
-    private JTextField pageNumberField;        // Virtual Page Number
+    private JTextField pageNumberHexField;     // Virtual Page Number (Hex)
+    private JTextField pageNumberField;        // Virtual Page Number (Binary)
     private JTextField offsetField;            // Page Offset
     private JButton generateButton;            // Generate Button
     private JButton submitButton;              // Submit Button
@@ -31,7 +32,7 @@ public class LoadInstructionPanel extends JPanel {
         add(new JLabel("Random Address (Binary):"), gbc);
 
         gbc.gridx = 1;
-        binaryAddressField = new JTextField(20); // Adjusted for consistent size with other fields
+        binaryAddressField = new JTextField(20);
         binaryAddressField.setEditable(false);
         add(binaryAddressField, gbc);
 
@@ -41,33 +42,43 @@ public class LoadInstructionPanel extends JPanel {
         add(new JLabel("Random Address (Hex):"), gbc);
 
         gbc.gridx = 1;
-        hexAddressField = new JTextField(20); // Adjusted for consistent size with other fields
+        hexAddressField = new JTextField(20);
         hexAddressField.setEditable(false);
         add(hexAddressField, gbc);
 
-        // Row 3: Virtual Page Number
+        // Row 3: Virtual Page Number (Hex)
         gbc.gridx = 0;
         gbc.gridy = 2;
+        add(new JLabel("Virtual Page Number (Hex):"), gbc);
+
+        gbc.gridx = 1;
+        pageNumberHexField = new JTextField(20);
+        pageNumberHexField.setEditable(false);
+        add(pageNumberHexField, gbc);
+
+        // Row 4: Virtual Page Number (Binary)
+        gbc.gridx = 0;
+        gbc.gridy = 3;
         add(new JLabel("Virtual Page Number (Binary):"), gbc);
 
         gbc.gridx = 1;
-        pageNumberField = new JTextField(20); // Adjusted for consistent size with other fields
+        pageNumberField = new JTextField(20);
         pageNumberField.setEditable(false);
         add(pageNumberField, gbc);
 
-        // Row 4: Page Offset
+        // Row 5: Page Offset
         gbc.gridx = 0;
-        gbc.gridy = 3;
+        gbc.gridy = 4;
         add(new JLabel("Page Offset (Binary):"), gbc);
 
         gbc.gridx = 1;
-        offsetField = new JTextField(20); // Adjusted for consistent size with other fields
+        offsetField = new JTextField(20);
         offsetField.setEditable(false);
         add(offsetField, gbc);
 
-        // Row 5: Buttons
+        // Row 6: Buttons
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy = 5;
         generateButton = new JButton("Generate");
         add(generateButton, gbc);
 
@@ -124,10 +135,15 @@ public class LoadInstructionPanel extends JPanel {
             hexAddressField.setText(generatedHexAddress); // Fill hex address field
 
             // Step 3: Split Binary Address into Page Number and Offset
-            String pageNumber = binaryAddressString.substring(0, binaryAddressString.length() - OFFSET_BITS); // Remove last OFFSET_BITS
+            String pageNumberBinary = binaryAddressString.substring(0, binaryAddressString.length() - OFFSET_BITS); // Remove last OFFSET_BITS
             String offset = binaryAddressString.substring(binaryAddressString.length() - OFFSET_BITS);         // Last OFFSET_BITS
 
-            pageNumberField.setText(pageNumber);
+            pageNumberField.setText(pageNumberBinary);
+
+            // Step 4: Convert Virtual Page Number to Hexadecimal
+            String pageNumberHex = binaryToHex(pageNumberBinary);
+            pageNumberHexField.setText(pageNumberHex); // Fill virtual page number hex field
+
             offsetField.setText(offset);
 
             // Enable the submit button now that an address is generated
@@ -171,6 +187,7 @@ public class LoadInstructionPanel extends JPanel {
     private void resetFields() {
         binaryAddressField.setText("");
         hexAddressField.setText("");
+        pageNumberHexField.setText("");
         pageNumberField.setText("");
         offsetField.setText("");
         generatedHexAddress = null;

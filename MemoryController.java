@@ -1,28 +1,37 @@
 package org.example.controller;
 
-import org.example.model.MyPMTable;
-import org.example.model.MyPageTable;
-import org.example.model.MyTLB;
+import org.example.model.PMTable;
+import org.example.model.PageTable;
+import org.example.model.TLBTable;
 import org.example.view.EventLogPanel;
+import org.example.view.StatusPanel;
 
 public class MemoryController {
-    public int physicalPageSize;
-    public int tlbSize;
-    public int addressLength;
-    public String[] instructionArray;
-    MyTLB tlb;
-    MyPMTable pmTable;
-    MyPageTable pageTable;
+    private int physicalPageSize;
+    private int tlbSize;
+    private int addressLength;
+    private String[] instructionArray;
+    private TLBTable tlbTable;
+    private PMTable pmTable;
+    private PageTable pageTable;
+    private EventLogPanel eventLogPanel;
+    private StatusPanel statusPanel;
 
-    public MemoryController(int physicalPage, int tlbSize, String instruction, String[] array, MyTLB tlb, MyPageTable pageTable, MyPMTable pmTable, int addressLength) {
+    private int hitCount;
+    private int missCount;
+
+    public MemoryController(int physicalPage, int tlbSize, String instruction, String[] array, TLBTable tlbTable, PageTable pageTable, PMTable pmTable, int addressLength, EventLogPanel eventLogPanel, StatusPanel statusPanel) {
         this.instructionArray = array;
         this.physicalPageSize = physicalPage;
         this.tlbSize = tlbSize;
         this.addressLength = addressLength;
-
-        this.tlb = tlb;
+        this.tlbTable = tlbTable;
         this.pmTable = pmTable;
         this.pageTable = pageTable;
+        this.eventLogPanel = eventLogPanel;
+        this.statusPanel = statusPanel;
+        this.hitCount = 0;
+        this.missCount = 0;
     }
 
     public String hexToBinary(String hex, int binaryLength) {
@@ -59,9 +68,9 @@ public class MemoryController {
         return binary.toString();
     }
 
-    public String binaryToHex(String s) {
-        if (s != null && !s.isEmpty()) {
-            int decimalValue = Integer.parseInt(s, 2);
+    public String binaryToHex(String binary) {
+        if (binary != null && !binary.isEmpty()) {
+            int decimalValue = Integer.parseInt(binary, 2);
             return Integer.toHexString(decimalValue).toUpperCase();
         } else {
             throw new IllegalArgumentException("Invalid binary string");
@@ -73,64 +82,80 @@ public class MemoryController {
         this.tlbSize = tlbSize;
         this.addressLength = addressLength;
 
-        tlb.setSize(tlbSize);
+        tlbTable.setSize(tlbSize);
         pageTable.setSize((int) Math.pow(2, addressLength - offset));
         pmTable.setSize((int) Math.pow(2, addressLength - offset));
     }
 
-    public boolean processSimulationStep(String currentAddress, int simulationStep, EventLogPanel eventLogPanel) {
+    public boolean processSimulationStep(String currentAddress, int simulationStep) {
         String binaryAddress = hexToBinary(currentAddress, addressLength);
         String offsetBits = binaryAddress.substring(binaryAddress.length() - 2);
         String virtualPageNumber = binaryAddress.substring(0, binaryAddress.length() - 2);
         String virtualPageNumberHex = binaryToHex(virtualPageNumber);
 
+        boolean isHit = false;
+
         switch (simulationStep) {
-            case 0:
-                eventLogPanel.appendLog("Step 0: Breaking down the address.\n");
-                eventLogPanel.appendLog("Binary Address: " + binaryAddress + "\n");
-                eventLogPanel.appendLog("Virtual Page Number (Binary): " + virtualPageNumber + "\n");
-                eventLogPanel.appendLog("Virtual Page Number (Hex): " + virtualPageNumberHex + "\n");
-                eventLogPanel.appendLog("Offset Bits: " + offsetBits + "\n");
-                return true;
-
-            case 1:
-                eventLogPanel.appendLog("Step 1: Checking TLB for Virtual Page Number (Hex): " + virtualPageNumberHex + "\n");
-                int tlbIndex = tlb.searchTLB(virtualPageNumberHex);
+            case 1: // Step 1: Check TLB
+                eventLogPanel.appendLog("Step 1: Checking TLB for Virtual Page Number (Hex): " + virtualPageNumberHex);
+                int tlbIndex = tlbTable.searchTLB(virtualPageNumberHex);
                 if (tlbIndex != -1) {
-                    eventLogPanel.appendLog("TLB Hit! Physical Page: " + tlb.getValueAt(tlbIndex, 2) + "\n");
-                    return false; // Skip further steps if TLB hit
+                    String physicalPage = (String) tlbTable.getValueAt(tlbIndex, 2);
+                    eventLogPanel.appendLog("TLB Hit! At Virtual Address " + currentAddress + ", you find the content of Physical Address " + physicalPage + ".");
+                    isHit = true;
+                    hitCount++;
                 } else {
-                    eventLogPanel.appendLog("TLB Miss! Proceeding to Page Table.\n");
+                    eventLogPanel.appendLog("TLB Miss! Proceeding to Page Table.");
                 }
-                return true;
+                break;
 
-            case 2:
-                eventLogPanel.appendLog("Step 2: Searching Page Table for Virtual Page Number (Hex): " + virtualPageNumberHex + "\n");
-                if (pageTable.searchPageTable(virtualPageNumberHex) == -1) {
-                    eventLogPanel.appendLog("Page Table Miss! Loading from secondary memory.\n");
+            case 2: // Step 2: Check Page Table
+                if (!isHit) {
+                    eventLogPanel.appendLog("Step 2: Checking Page Table for Virtual Page Number (Hex): " + virtualPageNumberHex);
+                    int pageTableIndex = pageTable.searchPageTable(virtualPageNumberHex);
+                    if (pageTableIndex != -1) {
+                        String physicalPage = (String) pageTable.getValueAt(pageTableIndex, 2);
+                        eventLogPanel.appendLog("Page Table HIT! At Virtual Address " + currentAddress + ", you find the content of Physical Address " + physicalPage + ".");
+                        isHit = true;
+                        hitCount++;
+                    } else {
+                        eventLogPanel.appendLog("Page Table Miss! Loading from secondary memory.");
+                        missCount++;
+                    }
+                }
+                break;
+
+            case 3: // Step 3: Load from Secondary Memory
+                if (!isHit) {
+                    eventLogPanel.appendLog("Step 3: Data will be loaded from Secondary Memory.");
                     int physicalFrameIndex = pmTable.addValue(virtualPageNumberHex, 2);
                     pageTable.setValue("1", Integer.parseInt(virtualPageNumberHex, 16), 1);
                     pageTable.setValue(Integer.toHexString(physicalFrameIndex).toUpperCase(), Integer.parseInt(virtualPageNumberHex, 16), 2);
-                    tlb.addValue(virtualPageNumberHex, Integer.toHexString(physicalFrameIndex).toUpperCase());
-                } else {
-                    eventLogPanel.appendLog("Page Table Hit!\n");
+                    tlbTable.addValue(virtualPageNumberHex, Integer.toHexString(physicalFrameIndex).toUpperCase());
                 }
-                return true;
+                break;
 
-            case 3:
-                eventLogPanel.appendLog("Step 3: Retrieving Data from Physical Memory.\n");
-                return true;
-
-            case 4:
-                eventLogPanel.appendLog("Step 4: Simulation complete for this address. Moving to next address.\n");
-                return true;
+            case 4: // Final Step
+                eventLogPanel.appendLog("Final Step: Simulation complete for this address. Submit another one!");
+                break;
 
             default:
-                return false;
+                throw new IllegalStateException("Invalid simulation step: " + simulationStep);
         }
+
+        // Update statistics on StatusPanel
+        statusPanel.updateStatistics(hitCount, missCount);
+
+        return isHit;
     }
 
     public void setInstructionArray(String[] addressArray) {
         this.instructionArray = addressArray;
+    }
+
+    public void resetStatistics() {
+        hitCount = 0;
+        missCount = 0;
+        statusPanel.updateStatistics(hitCount, missCount);
     }
 }

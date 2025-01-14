@@ -1,9 +1,9 @@
 package org.example.view;
 
 import org.example.controller.MemoryController;
-import org.example.model.MyPMTable;
-import org.example.model.MyPageTable;
-import org.example.model.MyTLB;
+import org.example.model.PMTable;
+import org.example.model.PageTable;
+import org.example.model.TLBTable;
 
 import javax.swing.*;
 import java.awt.*;
@@ -15,9 +15,9 @@ public class SimulatorGUI extends JFrame {
     private EventLogPanel eventLogPanel;
     private StatusPanel statusPanel;
 
-    private MyTLB tlbModel;
-    private MyPageTable pageTableModel;
-    private MyPMTable pmTableModel;
+    private TLBTable tlbTableModel;
+    private PageTable pageTableModel;
+    private PMTable pmTableModel;
     private MemoryController memoryController;
 
     private int simulationStep = 0;
@@ -38,33 +38,33 @@ public class SimulatorGUI extends JFrame {
         add(titleLabel);
 
         // Initialize Models
-        tlbModel = new MyTLB();
-        pageTableModel = new MyPageTable();
-        pmTableModel = new MyPMTable();
+        tlbTableModel = new TLBTable();
+        pageTableModel = new PageTable();
+        pmTableModel = new PMTable();
 
         // Settings Panel
         settingsPanel = new SettingsPanel();
-        settingsPanel.setBounds(20, 70, 400, 300); // Adjusted position below title
+        settingsPanel.setBounds(20, 70, 400, 280);
         add(settingsPanel);
 
         // Load Instruction Panel
         loadInstructionPanel = new LoadInstructionPanel();
-        loadInstructionPanel.setBounds(20, 380, 400, 240); // Minimized height
+        loadInstructionPanel.setBounds(20, 380, 400, 240);
         add(loadInstructionPanel);
 
         // Memory Panel
         memoryPanel = new MemoryPanel();
-        memoryPanel.setBounds(450, 70, 950, 550); // Center for memory visualization
+        memoryPanel.setBounds(450, 70, 930, 550);
         add(memoryPanel);
 
         // Status Panel
         statusPanel = new StatusPanel();
-        statusPanel.setBounds(1420, 70, 200, 550); // To the right of MemoryPanel
+        statusPanel.setBounds(1390, 70, 130, 550);
         add(statusPanel);
 
         // Event Log Panel
         eventLogPanel = new EventLogPanel();
-        eventLogPanel.setBounds(20, 620, 1600, 170); // Increased height by saved space
+        eventLogPanel.setBounds(20, 620, 1500, 170);
         add(eventLogPanel);
 
         // Add functionality to the SettingsPanel submit button
@@ -95,13 +95,15 @@ public class SimulatorGUI extends JFrame {
             int pageTableSize = (int) (virtualMemorySize / Math.pow(2, offset));
             int physicalMemoryRows = (int) (physicalMemorySize / Math.pow(2, offset));
 
-            tlbModel.setSize(tlbSize);
+            tlbTableModel.setSize(tlbSize);
             pageTableModel.setSize(pageTableSize);
             pmTableModel.setSize(physicalMemoryRows);
 
-            memoryPanel.updateTables(tlbModel, pageTableModel, pmTableModel);
+            memoryPanel.updateTables(tlbTableModel, pageTableModel, pmTableModel);
 
             int addressLength = (int) (Math.log(virtualMemorySize) / Math.log(2));
+            int pmAddressLength = (int) (Math.log(physicalMemorySize) / Math.log(2));
+
             loadInstructionPanel.initialize(addressLength);
 
             memoryController = new MemoryController(
@@ -109,17 +111,22 @@ public class SimulatorGUI extends JFrame {
                     tlbSize,
                     null, // No initial address
                     new String[0],
-                    tlbModel,
+                    tlbTableModel,
                     pageTableModel,
                     pmTableModel,
-                    addressLength
+                    addressLength,
+                    eventLogPanel,
+                    statusPanel
             );
 
+            memoryController.resetStatistics();
+
             eventLogPanel.appendLog("Memory visualization initialized successfully.\n");
-            eventLogPanel.appendLog("TLB Size: " + tlbSize + "\n");
-            eventLogPanel.appendLog("Page Table Rows: " + pageTableSize + "\n");
-            eventLogPanel.appendLog("Physical Memory Rows: " + physicalMemoryRows + "\n");
-            eventLogPanel.appendLog("Address Length: " + addressLength + " bits\n");
+            eventLogPanel.appendLog("TLB Size: " + tlbSize);
+            eventLogPanel.appendLog("Page Table Rows: Virtual Memory Size / 2^ offset =  " + pageTableSize);
+            eventLogPanel.appendLog("Physical Memory Rows: Physical Memory Size / 2^ offset = " + physicalMemoryRows);
+            eventLogPanel.appendLog("Virtual Address Length: log 2 ( Virtual Memory Size ) = " + addressLength + " bits");
+            eventLogPanel.appendLog("Physical Address Length: log 2 ( Physical Memory Size ) = " + pmAddressLength + " bits\n");
 
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Invalid input! Please enter valid integers.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -143,7 +150,7 @@ public class SimulatorGUI extends JFrame {
             if (generatedHexAddress != null && !generatedHexAddress.isEmpty()) {
                 addressArray = new String[]{generatedHexAddress};
                 currentAddressIndex = 0;
-                simulationStep = 0;
+                simulationStep = 1; // Start simulation at step 1
 
                 memoryController.setInstructionArray(addressArray);
 
@@ -163,17 +170,16 @@ public class SimulatorGUI extends JFrame {
             }
 
             String currentAddress = addressArray[currentAddressIndex];
-            boolean stepCompleted = memoryController.processSimulationStep(currentAddress, simulationStep, eventLogPanel);
+            boolean isHit = memoryController.processSimulationStep(currentAddress, simulationStep);
 
-            if (stepCompleted) {
+            if (isHit || simulationStep == 4) {
+                simulationStep = 1; // Reset for the next address
+                currentAddressIndex++;
+            } else {
                 simulationStep++;
-                if (simulationStep > 5) { // Reset for the next address
-                    simulationStep = 0;
-                    currentAddressIndex++;
-                }
             }
 
-            memoryPanel.updateTables(tlbModel, pageTableModel, pmTableModel);
+            memoryPanel.updateTables(tlbTableModel, pageTableModel, pmTableModel);
 
             if (currentAddressIndex >= addressArray.length) {
                 eventLogPanel.appendLog("Simulation complete for all addresses.\n");
