@@ -13,15 +13,15 @@ This project is useful for learning how modern operating systems handle **memory
 - 🚀 **TLB (Translation Lookaside Buffer)**: Implements fast memory access using TLB caching.
 - 💾 **Physical Memory Management**: Models RAM and paging operations.
 - 📊 **Event Logging**: Tracks memory accesses, page faults, and address translations.
-- 🎨 **Graphical Interface (If GUI is present)**: Visualizes memory operations interactively.
+- 🎨 **Graphical Interface**: Visualizes memory operations interactively.
 
 ---
 
 ## Installation & Setup
 
 ### **Prerequisites**
-- **Java JDK 8+**
-- **Maven** (if using dependency management)
+- **Java JDK**
+- **Maven** (using dependency management)
 - **Git** (to clone the repository)
 
 ### **Clone the Repository**
